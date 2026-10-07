@@ -7,6 +7,11 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
+    # Windows runner TEMP may use an 8.3 alias (RUNNER~1). Use an ordinary
+    # canonical runner directory so path guards are tested without aliases.
+    env:
+      TEMP: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
