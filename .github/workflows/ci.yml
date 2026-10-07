@@ -7,17 +7,20 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
-    # Windows runner TEMP may use an 8.3 alias (RUNNER~1). Use an ordinary
-    # canonical runner directory so path guards are tested without aliases.
-    env:
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
+      # Set this on the runner: the runner context is unavailable in job env.
+      # Keep strict path checks; avoid the default Windows 8.3 TEMP alias.
+      - name: Use canonical temporary directory
+        run: |
+          $testTempDir = (node -e "console.log(require('fs').realpathSync(process.env.RUNNER_TEMP))").Trim()
+          "TEMP=$testTempDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$testTempDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - run: npm ci
       - run: npm run build
       - run: npm test
