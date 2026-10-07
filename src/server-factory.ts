@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerFilesystemTools } from "./tools/filesystem.js";
+import { registerBinaryUploadTools } from "./tools/binary-upload.js";
 import { registerShellTools } from "./tools/shell.js";
 import { registerGitTools } from "./tools/git.js";
 import { registerContextTools } from "./tools/context.js";
@@ -31,7 +32,7 @@ function configureToolRegistration(server: McpServer): void {
 
     // Upstream MCP tools are namespaced as <server>__<tool>. An enabled
     // upstream is always exposed directly, even when local tools use slim.
-    if (!isUpstreamProxy && profile !== "full" && !shouldExposeTool(toolName, profile)) {
+    if (!isUpstreamProxy && !shouldExposeTool(toolName, profile)) {
       return NOOP_TOOL;
     }
 
@@ -58,8 +59,8 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer(
     {
-      name: "codex-mcp-server",
-      version: "2.0.0",
+      name: "guichen-local-coder",
+      version: "0.1.0",
     },
     {
       capabilities: {
@@ -78,6 +79,7 @@ export function createMcpServer(
   configureToolRegistration(server);
 
   registerFilesystemTools(server);
+  registerBinaryUploadTools(server);
   registerShellTools(server, workspaceRoot, shellTimeout);
   registerGitTools(server, workspaceRoot);
   registerContextTools(server, workspaceRoot);

@@ -1,6 +1,0 @@
-Local coding agent (Claude Code-style). TAG this connector in every chat (@Local Coder).
-
-Workflow: explore (glob/grep/read) → apply_patch → verify (run_command tests/build).
-Project memory from CLAUDE.md is auto-loaded from WORKSPACE_PATH.
-
-First message tip: include project path if not default cwd.

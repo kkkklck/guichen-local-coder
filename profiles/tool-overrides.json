@@ -1,0 +1,29 @@
+{
+  "disabled": [
+    "clear_processes",
+    "node_repl",
+    "ponytail_turn",
+    "git_status",
+    "git_diff",
+    "git_log",
+    "git_add",
+    "git_commit",
+    "git_branch",
+    "git_checkout",
+    "git_restore",
+    "git_push",
+    "git_pull",
+    "git_stash",
+    "git_reset",
+    "mcp_servers",
+    "mcp_tools",
+    "mcp_call",
+    "remember",
+    "rewind",
+    "agent_status",
+    "project_context",
+    "load_path_rules",
+    "list_skills",
+    "load_skill"
+  ]
+}

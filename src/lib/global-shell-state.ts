@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "fs/promises";
 import path from "path";
+import { redactSensitiveCommand } from "./shell-approval.js";
 
 export interface GlobalShellState {
   workspace_key: string;
@@ -30,7 +31,10 @@ export async function loadGlobalShellState(
     const raw = await fs.readFile(statePath(workspaceRoot), "utf-8");
     const parsed = JSON.parse(raw) as GlobalShellState;
     if (!parsed.cwd) return null;
-    return parsed;
+    return {
+      ...parsed,
+      recent_commands: (parsed.recent_commands ?? []).map((item) => redactSensitiveCommand(item)),
+    };
   } catch {
     return null;
   }
@@ -44,7 +48,7 @@ export async function saveGlobalShellState(
 ): Promise<void> {
   const recent = [...(previous?.recent_commands ?? [])];
   if (command) {
-    recent.push(command);
+    recent.push(redactSensitiveCommand(command));
     while (recent.length > MAX_RECENT) recent.shift();
   }
 

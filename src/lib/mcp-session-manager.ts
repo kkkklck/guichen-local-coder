@@ -14,18 +14,21 @@ import { runCodexSessionStartHooks } from "./codex-hooks.js";
 
 
 const DEFAULT_PROTOCOL_VERSION = "2025-03-26";
-const SESSION_TTL_MS = parseInt(process.env.MCP_SESSION_TTL_MS || "86400000", 10); // 24h
+function positiveSetting(name: string, fallback: number): number {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`Invalid ${name}: positive integer required`);
+  return value;
+}
+const SESSION_TTL_MS = positiveSetting("MCP_SESSION_TTL_MS", 1_800_000); // 30m idle
 const SESSION_CLEANUP_INTERVAL_MS = parseInt(
   process.env.MCP_SESSION_CLEANUP_MS || "300000",
   10
 ); // 5m
-const SESSION_DELETE_GRACE_MS = parseInt(
-  process.env.MCP_SESSION_DELETE_GRACE_MS || "45000",
-  10
-); // keep session after DELETE so in-flight tool calls can finish
+const SESSION_MAX = positiveSetting("MCP_SESSION_MAX", 512);
+const RECOVERY_TIMEOUT_MS = positiveSetting("MCP_SESSION_RECOVERY_TIMEOUT_MS", 10_000);
 
-const lastTransportErrors: Record<string, string> = {};
-const sessionOpChains = new Map<string, Promise<void>>();
+const lastTransportErrors = new Map<string, string>();
+export class SessionCapacityError extends Error {}
 
 /**
  * Gan Mcp-Session-Id vao request truoc khi day cho transport.
@@ -73,6 +76,9 @@ export interface McpSession {
   server: McpServer;
   lastAccessedAt: number;
   createdAt: number;
+  activeRequests: number;
+  queuedRequests: number;
+  closed: boolean;
 }
 
 export interface SessionManagerConfig {
@@ -87,6 +93,7 @@ export interface SessionManager {
   get(sessionId: string): McpSession | undefined;
   touch(sessionId: string): void;
   count(): number;
+  stats(): { sessions: number; activeRequests: number; queuedRequests: number; recovering: number; maxSessions: number; idleTtlMs: number };
   createNew(req: Request, res: Response, body: unknown): Promise<void>;
   handleExisting(session: McpSession, req: Request, res: Response, body?: unknown): Promise<void>;
   tryRecoverStale(
@@ -127,8 +134,10 @@ async function loopbackMcpPost(
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(RECOVERY_TIMEOUT_MS),
   });
-
+  // Drain the handshake response so its connection can return to the pool.
+  await response.arrayBuffer();
   return {
     ok: response.ok,
     status: response.status,
@@ -137,12 +146,14 @@ async function loopbackMcpPost(
 }
 
 export function consumeSessionTransportError(sessionId?: string): string | undefined {
-  if (!sessionId || !lastTransportErrors[sessionId]) return undefined;
-  const message = lastTransportErrors[sessionId];
-  delete lastTransportErrors[sessionId];
+  if (!sessionId) return undefined;
+  const message = lastTransportErrors.get(sessionId);
+  lastTransportErrors.delete(sessionId);
   return message;
 }
 
+export function createSessionManager(config: SessionManagerConfig): SessionManager {
+const sessionOpChains = new Map<string, Promise<void>>();
 async function enqueueSessionOp(sessionId: string, op: () => Promise<void>): Promise<void> {
   const prev = sessionOpChains.get(sessionId) ?? Promise.resolve();
   const run = prev.catch(() => undefined).then(op);
@@ -156,55 +167,57 @@ async function enqueueSessionOp(sessionId: string, op: () => Promise<void>): Pro
   }
 }
 
-export function createSessionManager(config: SessionManagerConfig): SessionManager {
-  const sessions: Record<string, McpSession> = {};
-  const pendingRecoveries: Record<string, McpSession> = {};
-  const deleteGraceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  const sessions = new Map<string, McpSession>();
+  const pendingRecoveries = new Map<string, McpSession>();
+  const recoveryTasks = new Map<string, Promise<McpSession | undefined>>();
+  const uninitialized = new Set<McpSession>();
+  const terminated = new Map<string, number>();
+  let constructing = 0;
   let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   function touch(sessionId: string): void {
-    cancelDeleteGrace(sessionId);
-    const session = sessions[sessionId];
+    const session = sessions.get(sessionId);
     if (session) {
       session.lastAccessedAt = Date.now();
     }
   }
 
-  function cancelDeleteGrace(sessionId: string): void {
-    const timer = deleteGraceTimers[sessionId];
-    if (!timer) return;
-    clearTimeout(timer);
-    delete deleteGraceTimers[sessionId];
-  }
-
-  function scheduleDeleteGrace(sessionId: string): void {
-    cancelDeleteGrace(sessionId);
-    console.log(
-      `[MCP] Session DELETE — giữ ${SESSION_DELETE_GRACE_MS / 1000}s để tool call đang chạy: ${sessionId}`
-    );
-    deleteGraceTimers[sessionId] = setTimeout(() => {
-      delete deleteGraceTimers[sessionId];
-      removeSession(sessionId, "client DELETE (grace expired)");
-    }, SESSION_DELETE_GRACE_MS);
-    deleteGraceTimers[sessionId].unref?.();
-  }
-
-  function removeSession(sessionId: string, reason: string): void {
-    cancelDeleteGrace(sessionId);
-    const session = sessions[sessionId];
-    if (!session) return;
+  function dispose(session: McpSession): void {
+    session.closed = true;
+    uninitialized.delete(session);
     getUpstreamManager().unregisterMcpServer(session.server);
-    delete sessions[sessionId];
-    delete lastTransportErrors[sessionId];
-    sessionOpChains.delete(sessionId);
+    void session.server.close().catch(() => undefined);
+    void session.transport.close().catch(() => undefined);
+  }
+
+  function removeSession(sessionId: string, reason: string, expected?: McpSession): void {
+    const session = sessions.get(sessionId);
+    if (!session || (expected && session !== expected)) return;
+    sessions.delete(sessionId);
+    lastTransportErrors.delete(sessionId);
+    dispose(session);
     console.log(`[MCP] Session removed (${reason}): ${sessionId}`);
   }
 
+  function reserveCapacity(): void {
+    while (sessions.size + uninitialized.size + constructing >= SESSION_MAX) {
+      const idle = [...sessions.entries()]
+        .filter(([, s]) => !s.activeRequests && !s.queuedRequests)
+        .sort((a, b) => a[1].lastAccessedAt - b[1].lastAccessedAt)[0];
+      if (!idle) throw new SessionCapacityError("MCP session capacity is busy; retry initialization later.");
+      removeSession(idle[0], "idle capacity eviction", idle[1]);
+    }
+  }
+
   function clearPendingRecovery(sessionId: string): void {
-    delete pendingRecoveries[sessionId];
+    pendingRecoveries.delete(sessionId);
   }
 
   async function buildSession(preferredSessionId?: string): Promise<McpSession> {
+    reserveCapacity();
+    constructing++;
+    let session: McpSession | undefined;
+    try {
     const hookInstructions = await runCodexSessionStartHooks().catch((error) => {
       console.warn("[MCP] Codex SessionStart hook failed:", error);
       return "";
@@ -213,7 +226,7 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       config.workspaceRoot,
       config.shellTimeout,
       config.workspaceRoots,
-      true,
+      false,
       getUpstreamManager(),
       [config.projectMemoryInstructions, hookInstructions].filter(Boolean).join("\n\n")
     );
@@ -224,34 +237,40 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
         : () => randomUUID(),
       enableJsonResponse: true,
       onsessioninitialized: (sid) => {
-        const existing = sessions[sid];
-        sessions[sid] = {
-          transport,
-          server: mcpServer,
-          lastAccessedAt: Date.now(),
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
+        if (!session) throw new Error("MCP session construction incomplete");
+        session.lastAccessedAt = Date.now();
+        uninitialized.delete(session);
+        sessions.set(sid, session);
         clearPendingRecovery(sid);
         console.log(`[MCP] Session initialized: ${sid}`);
       },
       onsessionclosed: (sid) => {
-        if (sid) scheduleDeleteGrace(sid);
+        if (sid) {
+          terminated.set(sid, Date.now());
+          while (terminated.size > SESSION_MAX * 2) terminated.delete(terminated.keys().next().value!);
+        }
       },
     });
 
     transport.onerror = (error) => {
       const sid = transport.sessionId;
       const message = error.message || String(error);
-      if (sid) lastTransportErrors[sid] = message;
+      if (sid) lastTransportErrors.set(sid, message);
     };
 
-    // Keep session alive across transient SSE disconnects; explicit DELETE cleans up.
+    // An SSE stream disconnect does not close the transport. onclose means the
+    // entire SDK transport is unusable: never retain it as an active session.
     transport.onclose = () => {
       const sid = transport.sessionId;
-      if (!sid || !sessions[sid]) return;
-      console.log(`[MCP] Transport closed for ${sid} (session kept for recovery)`);
+      if (!session) return;
+      session.closed = true;
+      uninitialized.delete(session);
+      getUpstreamManager().unregisterMcpServer(mcpServer);
+      if (sid) removeSession(sid, "transport closed", session);
     };
 
+    session = { transport, server: mcpServer, lastAccessedAt: Date.now(), createdAt: Date.now(), activeRequests: 0, queuedRequests: 0, closed: false };
+    uninitialized.add(session);
     await mcpServer.connect(transport);
     // Native tools must be available immediately. Upstream discovery can spawn
     // local processes or wait on remote MCPs, so publish it when ready instead.
@@ -259,15 +278,11 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       .then(() => mcpServer.sendToolListChanged())
       .catch((error) => console.warn("[MCP] Upstream tool refresh failed:", error));
 
-    const sid = transport.sessionId ?? preferredSessionId ?? randomUUID();
-    return (
-      sessions[sid] ?? {
-        transport,
-        server: mcpServer,
-        lastAccessedAt: Date.now(),
-        createdAt: Date.now(),
-      }
-    );
+    return session;
+    } catch (error) {
+      if (session) dispose(session);
+      throw error;
+    } finally { constructing--; }
   }
 
   async function warmUpRecoveredSession(
@@ -313,18 +328,22 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       return false;
     }
 
-    return Boolean(sessions[staleSessionId]);
+    return Boolean(sessions.get(staleSessionId));
   }
 
   return {
     get(sessionId: string) {
-      return sessions[sessionId];
+      const session = sessions.get(sessionId);
+      return session?.closed ? undefined : session;
     },
 
     touch,
 
     count() {
-      return Object.keys(sessions).length;
+      return sessions.size;
+    },
+    stats() {
+      return { sessions: sessions.size, activeRequests: [...sessions.values()].reduce((n, s) => n + s.activeRequests, 0), queuedRequests: [...sessions.values()].reduce((n, s) => n + s.queuedRequests, 0), recovering: recoveryTasks.size, maxSessions: SESSION_MAX, idleTtlMs: SESSION_TTL_MS };
     },
 
     sendSessionNotFound(res: Response, requestId: string | number | null = null) {
@@ -351,8 +370,8 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       const headerSessionId = req.headers["mcp-session-id"] as string | undefined;
       let session: McpSession;
 
-      if (headerSessionId && pendingRecoveries[headerSessionId]) {
-        session = pendingRecoveries[headerSessionId];
+      if (headerSessionId && pendingRecoveries.has(headerSessionId)) {
+        session = pendingRecoveries.get(headerSessionId)!;
         clearPendingRecovery(headerSessionId);
         console.log(`[MCP] Using pending recovery transport for ${headerSessionId}`);
       } else {
@@ -361,9 +380,12 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
 
       const sid = headerSessionId || session.transport.sessionId;
       const run = async () => {
-        await session.transport.handleRequest(req, res, body);
-        const activeSid = session.transport.sessionId;
-        if (activeSid) touch(activeSid);
+        try {
+          await session.transport.handleRequest(req, res, body);
+          const activeSid = session.transport.sessionId;
+          if (activeSid) touch(activeSid);
+          else dispose(session);
+        } catch (error) { dispose(session); throw error; }
       };
 
       if (sid) {
@@ -383,13 +405,25 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
         session.transport.sessionId || (req.headers["mcp-session-id"] as string | undefined);
       if (sid) touch(sid);
       const run = async () => {
-        await session.transport.handleRequest(req, res, body);
+        if (session.closed) {
+          res.locals.mcpError = "Session closed; initialize a fresh MCP session.";
+          res.status(404).json({ jsonrpc: "2.0", id: extractRequestId(body), error: { code: -32001, message: res.locals.mcpError } });
+          return;
+        }
+        if (req.method !== "GET") session.activeRequests++;
+        try { await session.transport.handleRequest(req, res, body); }
+        finally {
+          if (req.method !== "GET") session.activeRequests--;
+          if (sid && !session.closed) touch(sid);
+        }
       };
       // GET mo SSE stream song lau: handleRequest chi resolve khi stream dong.
       // Neu day vao hang doi tuan tu, no giu khoa vinh vien va MOI POST sau do
       // (tools/list, tools/call) se treo — deadlock. Chi tuan tu hoa POST/DELETE.
       if (sid && req.method !== "GET") {
-        await enqueueSessionOp(sid, run);
+        session.queuedRequests++;
+        try { await enqueueSessionOp(sid, run); }
+        finally { session.queuedRequests--; }
       } else {
         await run();
       }
@@ -401,40 +435,49 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       res: Response,
       body: unknown
     ): Promise<boolean> {
-      if (isInitializeRequest(body)) {
+      if (isInitializeRequest(body) || terminated.has(staleSessionId)) {
         return false;
       }
-
-      console.log(`[MCP] Attempting session recovery for stale ID: ${staleSessionId}`);
 
       const protocolVersion = negotiateProtocolVersion(
         req.headers["mcp-protocol-version"] as string | undefined
       );
       const mcpPath = req.path || "/mcp";
 
-      const pending = await buildSession(staleSessionId);
-      pendingRecoveries[staleSessionId] = pending;
-
-      const warmed = await warmUpRecoveredSession(staleSessionId, mcpPath, protocolVersion);
-      if (!warmed) {
-        clearPendingRecovery(staleSessionId);
-        removeSession(staleSessionId, "recovery failed");
-        return false;
+      let recovery = recoveryTasks.get(staleSessionId);
+      if (!recovery) {
+        recovery = (async () => {
+          let pending: McpSession | undefined;
+          try {
+            const existing = sessions.get(staleSessionId);
+            if (existing && !existing.closed) return existing;
+            console.log(`[MCP] Attempting session recovery: ${staleSessionId}`);
+            pending = await buildSession(staleSessionId);
+            pendingRecoveries.set(staleSessionId, pending);
+            if (!await warmUpRecoveredSession(staleSessionId, mcpPath, protocolVersion)) {
+              removeSession(staleSessionId, "recovery failed", pending);
+              dispose(pending);
+              return undefined;
+            }
+            console.log(`[MCP] Session recovered: ${staleSessionId}`);
+            return sessions.get(staleSessionId);
+          } catch (error) {
+            if (pending) { removeSession(staleSessionId, "recovery failed", pending); dispose(pending); }
+            if (error instanceof SessionCapacityError) throw error;
+            console.warn("[MCP] Recovery handshake failed; request was not executed.");
+            return undefined;
+          } finally { clearPendingRecovery(staleSessionId); }
+        })();
+        recoveryTasks.set(staleSessionId, recovery);
       }
-
-      const recovered = sessions[staleSessionId];
-      if (!recovered) {
-        clearPendingRecovery(staleSessionId);
-        return false;
-      }
+      let recovered: McpSession | undefined;
+      try { recovered = await recovery; }
+      finally { if (recoveryTasks.get(staleSessionId) === recovery) recoveryTasks.delete(staleSessionId); }
+      if (!recovered || recovered.closed) return false;
 
       touch(staleSessionId);
-      console.log(`[MCP] Session recovered: ${staleSessionId}`);
-
       const patchedReq = withSessionIdHeader(req, staleSessionId, protocolVersion);
-      await enqueueSessionOp(staleSessionId, async () => {
-        await recovered.transport.handleRequest(patchedReq, res, body);
-      });
+      await this.handleExisting(recovered, patchedReq, res, body);
       return true;
     },
 
@@ -442,14 +485,10 @@ export function createSessionManager(config: SessionManagerConfig): SessionManag
       if (cleanupTimer) return;
       cleanupTimer = setInterval(() => {
         const now = Date.now();
-        for (const [sid, session] of Object.entries(sessions)) {
-          if (now - session.lastAccessedAt > SESSION_TTL_MS) {
-            void session.transport.close().catch(() => undefined);
-            removeSession(sid, "TTL expired");
+        for (const [sid, session] of sessions) {
+          if (!session.activeRequests && !session.queuedRequests && now - session.lastAccessedAt > SESSION_TTL_MS) {
+            removeSession(sid, "idle TTL expired", session);
           }
-        }
-        for (const sid of Object.keys(pendingRecoveries)) {
-          if (!sessions[sid]) clearPendingRecovery(sid);
         }
       }, SESSION_CLEANUP_INTERVAL_MS);
       cleanupTimer.unref?.();

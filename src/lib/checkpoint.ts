@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID, createHash } from "node:crypto";
+import { validatePath } from "./path-security.js";
 
 export interface CheckpointFileSnapshot {
   path: string;
@@ -160,6 +161,8 @@ async function snapshotDirectory(dirPath: string, depth: number): Promise<Checkp
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dirPath, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    try { await validatePath(full); } catch { continue; }
     if (entry.isDirectory()) {
       children.push(await snapshotDirectory(full, depth + 1));
     } else if (entry.isFile()) {

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { appendActivity, getRecentActivity, logMcpRequest, summarizeToolArgs } from "../dist/lib/activity-log.js";
 
 // summarizeToolArgs
-assert.equal(summarizeToolArgs("run_command", { command: "npm test" }), "npm test");
+assert.equal(summarizeToolArgs("run_command", { command: "npm test" }), "shell command request");
+assert.equal(summarizeToolArgs("run_command", { command: "python -c \"print('sk-proj-secret-value')\"" }), "shell command request");
+assert.equal(summarizeToolArgs("start_process", { command: "npm run dev" }), "background shell request");
 assert.equal(summarizeToolArgs("read_text_file", { path: "C:\\foo.ts" }), "C:\\foo.ts");
 
 // append + retrieve

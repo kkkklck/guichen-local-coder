@@ -17,17 +17,30 @@ try {
   if (SLIM_CHATGPT_TOOLS.size < 18) throw new Error(`slim set too small: ${SLIM_CHATGPT_TOOLS.size}`);
   ok(`slim profile has ${SLIM_CHATGPT_TOOLS.size} tools`);
 
-  for (const t of ["apply_patch", "glob", "remember", "load_path_rules"]) {
+  for (const t of ["read_text_file", "apply_patch", "glob"]) {
     if (!shouldExposeTool(t, "slim")) throw new Error(`${t} missing from slim`);
   }
   ok("core tools exposed in slim");
 
-  if (shouldExposeTool("mcp_call", "slim")) throw new Error("mcp_call should be hidden in slim");
-  if (shouldExposeTool("delete_directory", "slim")) throw new Error("delete_directory hidden");
-  ok("heavy tools hidden in slim");
+  for (const t of ["run_command", "shell_status", "shell_reset", "start_process", "process_status", "process_output", "stop_process"]) {
+    if (!shouldExposeTool(t, "slim")) throw new Error(`${t} missing from slim approval-gated shell`);
+  }
+  ok("approval-gated shell controls exposed in slim");
 
-  if (!shouldExposeTool("mcp_call", "full")) throw new Error("full should expose all");
-  ok("full profile exposes all");
+  if (shouldExposeTool("mcp_call", "slim")) throw new Error("mcp_call should be hidden in slim");
+  for (const t of ["delete_file", "create_directory", "delete_directory", "copy_file", "move_file", "extract_pdf_text", "convert_document_text"]) {
+    if (!shouldExposeTool(t, "slim")) throw new Error(`${t} missing from slim`);
+  }
+  ok("workspace file and document tools exposed in slim");
+
+  for (const t of ["write_binary_file", "begin_upload", "upload_chunk", "finish_upload"]) {
+    if (!shouldExposeTool(t, "slim")) throw new Error(`${t} missing from slim`);
+  }
+  ok("binary upload tools exposed in slim");
+
+  if (shouldExposeTool("mcp_call", "full")) throw new Error("mcp_call must remain disabled in every profile");
+  if (shouldExposeTool("node_repl", "full")) throw new Error("node_repl must remain disabled in every profile");
+  ok("full profile still respects the hard security denylist");
 } catch (e) {
   fail("tool profile", e.message || e);
 }

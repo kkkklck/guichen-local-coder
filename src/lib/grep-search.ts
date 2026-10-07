@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { validatePath } from "./path-security.js";
 
 export type GrepOutputMode = "content" | "files_with_matches" | "count";
 
@@ -71,8 +72,11 @@ export async function grepSearch(options: GrepOptions): Promise<string> {
       if (entry.name.startsWith(".") && entry.name !== ".") continue;
 
       const fullPath = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
-        if (!shouldSkipDir(entry.name)) await walk(fullPath);
+        if (!shouldSkipDir(entry.name)) {
+          try { await validatePath(fullPath); await walk(fullPath); } catch { /* Skip linked or inaccessible directories. */ }
+        }
         continue;
       }
 
@@ -80,6 +84,7 @@ export async function grepSearch(options: GrepOptions): Promise<string> {
 
       let text: string;
       try {
+        await validatePath(fullPath);
         text = await fs.readFile(fullPath, "utf-8");
       } catch {
         continue;

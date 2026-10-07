@@ -1,16 +1,8 @@
 {
-  "name": "chatgpt-local-coder",
-  "version": "1.0.0",
-  "description": "Turn ChatGPT web into a local coding agent via MCP — files, shell, git, apply_patch, 40+ tools",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hoangcoderr/chatgpt-local-coder.git"
-  },
-  "homepage": "https://github.com/hoangcoderr/chatgpt-local-coder#readme",
-  "bugs": {
-    "url": "https://github.com/hoangcoderr/chatgpt-local-coder/issues"
-  },
-  "author": "hoangcoderr",
+  "name": "guichen-local-coder",
+  "version": "0.1.0",
+  "description": "Windows local MCP workstation bridge with workspace file tools, verified binary uploads, Shell Guard and session recovery",
+  "author": "Guichen Local Coder contributors",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -18,13 +10,19 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node scripts/test-patch.mjs && node scripts/test-tools.mjs && node scripts/test-checkpoints.mjs && node scripts/test-mcp-upstream.mjs && node scripts/test-mcp-oauth.mjs && node scripts/test-activity-log.mjs && node scripts/test-project-memory.mjs && node scripts/test-tool-profile.mjs && node scripts/test-shell-persist.mjs",
+    "test": "tsc && node scripts/test-patch.mjs && node scripts/test-tools.mjs && node scripts/test-checkpoints.mjs && node scripts/test-mcp-upstream.mjs && node scripts/test-mcp-oauth.mjs && node scripts/test-activity-log.mjs && node scripts/test-project-memory.mjs && node scripts/test-tool-profile.mjs && node scripts/test-workspace-security.mjs && node scripts/test-binary-upload.mjs && node scripts/test-shell-persist.mjs && node scripts/test-shell-approval.mjs && node scripts/test-shell-trusted.mjs",
+    "test:shell-trusted": "tsc && node scripts/test-shell-trusted.mjs",
+    "test:session-resilience": "tsc && node scripts/test-mcp-session-resilience.mjs",
     "test:all": "node scripts/run-all-tests.mjs",
     "test:integration": "tsc && node scripts/test-mcp-bridge-integration.mjs",
     "init-claude-md": "node scripts/init-claude-md.mjs",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "check:release": "node scripts/check-release.mjs",
+    "test:tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/tunnel/tests/test-bridge-runtime.ps1 && node windows/tunnel/tests/test-supervisor-lifecycle.mjs",
+    "test:setup": "tsc && node scripts/test-setup.mjs",
+    "tools:schema": "tsc && node scripts/export-tool-schema.mjs"
   },
   "keywords": [
     "mcp",
@@ -44,13 +42,27 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "yauzl": "^3.4.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
+    "@types/yauzl": "^3.4.0",
     "tsx": "^4.23.11",
     "typescript": "^7.0.2"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kkkklck/guichen-local-coder.git"
+  },
+  "homepage": "https://github.com/kkkklck/guichen-local-coder#readme",
+  "bugs": {
+    "url": "https://github.com/kkkklck/guichen-local-coder/issues"
   }
 }

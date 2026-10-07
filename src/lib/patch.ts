@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { validatePath } from "./path-security.js";
 
 /**
  * Apply unified diff / Codex-style patches to text.
@@ -271,8 +272,12 @@ export async function applyMultiFilePatch(
 
   for (const op of ops) {
     try {
+      const validPath = await validatePath(op.path);
       if (op.operation === "delete") {
-        if (!dryRun) await fs.unlink(op.path);
+        if (!dryRun) {
+          await validatePath(validPath);
+          await fs.unlink(validPath);
+        }
         results.push({ path: op.path, operation: "delete", ok: true, diff: "[deleted]" });
         continue;
       }
@@ -280,17 +285,21 @@ export async function applyMultiFilePatch(
       if (op.operation === "create") {
         const content = op.content ?? "";
         if (!dryRun) {
-          await fs.mkdir(path.dirname(op.path), { recursive: true });
-          await fs.writeFile(op.path, content, "utf-8");
+          await fs.mkdir(path.dirname(validPath), { recursive: true });
+          await validatePath(validPath);
+          await fs.writeFile(validPath, content, "utf-8");
         }
         results.push({ path: op.path, operation: "create", ok: true, diff: buildSimpleDiff("", content) });
         continue;
       }
 
-      const original = await fs.readFile(op.path, "utf-8");
+      const original = await fs.readFile(validPath, "utf-8");
       const next = applyUnifiedPatchToText(original, op.patch || "");
       const diff = buildSimpleDiff(original, next);
-      if (!dryRun) await fs.writeFile(op.path, next, "utf-8");
+      if (!dryRun) {
+        await validatePath(validPath);
+        await fs.writeFile(validPath, next, "utf-8");
+      }
       results.push({ path: op.path, operation: "update", ok: true, diff });
     } catch (err) {
       results.push({

@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { validatePath } from "./path-security.js";
 
 function globToRegExp(pattern: string): RegExp {
   const normalized = pattern.replace(/\\/g, "/");
@@ -45,16 +46,20 @@ export async function globFiles(
       if (matches.length >= maxResults) break;
       if (entry.name.startsWith(".") && entry.name !== ".") continue;
       const fullPath = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
       const rel = path.relative(rootDir, fullPath).replace(/\\/g, "/");
 
       if (entry.isDirectory()) {
-        if (!shouldSkipDir(entry.name)) await walk(fullPath);
+        if (!shouldSkipDir(entry.name)) {
+          try { await validatePath(fullPath); await walk(fullPath); } catch { /* Skip linked or inaccessible directories. */ }
+        }
         continue;
       }
 
       if (!matcher.test(rel) && !matcher.test(entry.name)) continue;
 
       try {
+        await validatePath(fullPath);
         const stat = await fs.stat(fullPath);
         matches.push({ path: fullPath, mtimeMs: stat.mtimeMs });
       } catch {}

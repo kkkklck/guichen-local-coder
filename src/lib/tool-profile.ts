@@ -5,7 +5,9 @@ export type ToolProfileName = "full" | "slim";
 
 export const LOCAL_TOOL_CATALOG = [
   "read_text_file", "write_file", "edit_file", "multi_edit", "apply_patch", "glob", "grep", "list_directory",
-  "run_command", "shell_status", "shell_reset", "start_process", "process_output", "node_repl", "ponytail_turn",
+  "delete_file", "create_directory", "delete_directory", "copy_file", "move_file", "extract_pdf_text", "convert_document_text",
+  "write_binary_file", "begin_upload", "upload_chunk", "finish_upload",
+  "run_command", "shell_status", "shell_reset", "start_process", "process_status", "process_output", "stop_process", "node_repl", "ponytail_turn",
   "git_status", "git_diff", "git_add", "git_commit", "git_restore", "agent_status", "project_context",
   "remember", "load_path_rules", "list_skills", "load_skill", "rewind", "mcp_servers", "mcp_tools", "mcp_call",
 ];
@@ -15,11 +17,26 @@ interface LocalToolOverrides {
   disabled?: string[];
 }
 
+// Keep unguarded code execution, Git mutation tools, and upstream delegation
+// disabled even if an override file is missing, malformed, or edited in the UI.
+// Shell Guard keeps its block rules; host configuration selects approval or trusted mode.
+const ALWAYS_DISABLED_TOOLS = new Set([
+  "clear_processes",
+  "node_repl", "ponytail_turn",
+  "git_status", "git_diff", "git_log", "git_add", "git_commit",
+  "git_branch", "git_checkout", "git_restore", "git_push", "git_pull",
+  "git_stash", "git_reset",
+  "mcp_servers", "mcp_tools", "mcp_call",
+  "remember", "rewind",
+  "agent_status", "project_context", "load_path_rules", "list_skills", "load_skill",
+]);
+
 const overridesPath = () => path.resolve(process.cwd(), "profiles", "tool-overrides.json");
 
 export function getLocalToolOverrides(): LocalToolOverrides {
   try {
-    return JSON.parse(fs.readFileSync(overridesPath(), "utf-8")) as LocalToolOverrides;
+    const raw = fs.readFileSync(overridesPath(), "utf-8").replace(/^\uFEFF/, "");
+    return JSON.parse(raw) as LocalToolOverrides;
   } catch {
     return {};
   }
@@ -40,10 +57,24 @@ export const SLIM_CHATGPT_TOOLS = new Set([
   "glob",
   "grep",
   "list_directory",
+  "delete_file",
+  "create_directory",
+  "delete_directory",
+  "copy_file",
+  "move_file",
+  "extract_pdf_text",
+  "convert_document_text",
+  "write_binary_file",
+  "begin_upload",
+  "upload_chunk",
+  "finish_upload",
   "run_command",
   "shell_status",
+  "shell_reset",
   "start_process",
+  "process_status",
   "process_output",
+  "stop_process",
   "git_status",
   "git_diff",
   "git_add",
@@ -67,6 +98,7 @@ export function getChatGptToolProfile(): ToolProfileName {
 }
 
 export function shouldExposeTool(name: string, profile: ToolProfileName = getChatGptToolProfile()): boolean {
+  if (ALWAYS_DISABLED_TOOLS.has(name)) return false;
   const overrides = getLocalToolOverrides();
   if ((overrides.disabled ?? []).includes(name)) return false;
   if (profile === "full") return true;

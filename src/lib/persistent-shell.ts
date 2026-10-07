@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
+import { redactSensitiveCommand } from "./shell-approval.js";
 
 export interface ShellExecResult {
   command: string;
@@ -267,7 +268,7 @@ export async function execInShellSession(
   const { cwd, command: effective } = applyCwdDirectives(sessionCwd!, command);
   sessionCwd = cwd;
 
-  history.push(effective);
+  history.push(redactSensitiveCommand(effective));
   if (history.length > MAX_HISTORY) history.shift();
 
   const result = await runOnce(effective, cwd, timeoutMs);

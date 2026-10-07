@@ -32,7 +32,13 @@ export function summarizeToolArgs(tool: string, args: unknown): string {
   if (!args || typeof args !== "object") return "";
   const a = args as Record<string, unknown>;
 
-  if (tool === "run_command" && typeof a.command === "string") return trimSummary(a.command, 120);
+  if (BINARY_UPLOAD_TOOLS.has(tool)) {
+    const safe = safeToolArguments(tool, args);
+    return trimSummary(JSON.stringify(safe));
+  }
+
+  if (tool === "run_command") return "shell command request";
+  if (tool === "start_process") return "background shell request";
   if (typeof a.path === "string") return a.path;
   if (typeof a.server_id === "string" && typeof a.tool === "string") {
     return `${a.server_id} → ${a.tool}`;
@@ -46,6 +52,19 @@ export function summarizeToolArgs(tool: string, args: unknown): string {
   } catch {
     return "";
   }
+}
+
+const BINARY_UPLOAD_TOOLS = new Set(["write_binary_file", "begin_upload", "upload_chunk", "finish_upload"]);
+
+function safeToolArguments(tool: string, args: unknown): unknown {
+  if (!BINARY_UPLOAD_TOOLS.has(tool) || !args || typeof args !== "object") return args;
+  const source = args as Record<string, unknown>;
+  const safe: Record<string, unknown> = {};
+  for (const key of ["path", "size_bytes", "sha256", "session_id", "index"]) {
+    if (source[key] !== undefined) safe[key] = source[key];
+  }
+  if (typeof source.content_base64 === "string") safe.content_base64 = `<redacted ${source.content_base64.length} characters>`;
+  return safe;
 }
 
 export function appendActivity(partial: Omit<ActivityEntry, "id" | "time"> & { time?: string }): ActivityEntry {
@@ -230,7 +249,7 @@ export function logMcpRequest(
       summary,
       details: {
         http_status: httpStatus,
-        arguments: rpc.params.arguments,
+        arguments: safeToolArguments(tool, rpc.params.arguments),
         ...(errorMessage ? { error: errorMessage } : {}),
       },
     });

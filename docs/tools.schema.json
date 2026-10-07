@@ -1,0 +1,1752 @@
+{
+  "tools": [
+    {
+      "name": "extract_pdf_text",
+      "title": "Extract PDF Text",
+      "description": "Extract text from a PDF in the workspace using a fixed pdftotext invocation. No document actions or scripts are executed. Returns up to max_chars characters; use the file tools to save text if needed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "max_chars": {
+            "default": 100000,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 500000
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "convert_document_text",
+      "title": "Convert DOCX to Text",
+      "description": "Read visible text from a .docx file in the workspace. Reads only word/document.xml; does not run macros, fields, links, or external commands. Returns up to max_chars characters.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "max_chars": {
+            "default": 100000,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 500000
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "read_text_file",
+      "title": "Read Text File",
+      "description": "Read a file before editing. Use offset+limit for partial reads (1-based line numbers). Always read files you plan to patch.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "description": "1-based line number to start reading",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "description": "Number of lines to read from offset",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "head": {
+            "type": "number"
+          },
+          "tail": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "write_file",
+      "title": "Write File",
+      "description": "Save text to a local file. Routine local file update.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "edit_file",
+      "title": "Edit File",
+      "description": "Apply exact text replacement to a file. Returns diff.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "old_text": {
+            "type": "string"
+          },
+          "new_text": {
+            "type": "string"
+          },
+          "replace_all": {
+            "default": false,
+            "type": "boolean"
+          },
+          "dry_run": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "old_text",
+          "new_text"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "multi_edit",
+      "title": "Multi Edit",
+      "description": "Apply multiple exact replacements to one text file atomically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "edits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "old_text": {
+                  "type": "string"
+                },
+                "new_text": {
+                  "type": "string"
+                },
+                "replace_all": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "old_text",
+                "new_text"
+              ]
+            }
+          },
+          "dry_run": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "edits"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "apply_patch",
+      "title": "Apply Patch",
+      "description": "Batch workspace file creates, updates, and deletes in one explicit multi-file patch. Supports Codex @@ hunks or *** Begin Patch format. Read files first; use dry_run:true to preview.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "description": "Target file (single-file) or base directory (multi-file)",
+            "type": "string"
+          },
+          "patch": {
+            "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "patch"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_directory",
+      "title": "List Directory",
+      "description": "List files and directories in a path. Claude LS equivalent with optional ignore globs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "ignore": {
+            "description": "Glob patterns to ignore, e.g. node_modules, *.log",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "glob",
+      "title": "Glob",
+      "description": "Explore: find files by name pattern under a directory. Use before read_text_file when you do not know exact paths.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern like \"**/*.ts\" or \"src/**/*.tsx\""
+          },
+          "path": {
+            "description": "Directory to search in; defaults to workspace root context",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 100,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "grep",
+      "title": "Grep",
+      "description": "Explore: search file contents by regex. Prefer over reading many files blindly. Modes: content, files_with_matches, count.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "glob": {
+            "default": "*",
+            "type": "string"
+          },
+          "output_mode": {
+            "default": "content",
+            "type": "string",
+            "enum": [
+              "content",
+              "files_with_matches",
+              "count"
+            ]
+          },
+          "case_insensitive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "multiline": {
+            "default": false,
+            "type": "boolean"
+          },
+          "head_limit": {
+            "default": 200,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          },
+          "context_before": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "context_after": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "context_around": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "delete_file",
+      "title": "Delete File",
+      "description": "Delete a file from the filesystem.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "create_directory",
+      "title": "Create Directory",
+      "description": "Create a directory (and parents if needed).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "delete_directory",
+      "title": "Remove Local Folder",
+      "description": "Remove a folder from the local workspace (user-specified path). Does not affect remote servers.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "copy_file",
+      "title": "Copy File",
+      "description": "Copy a file to a new location.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "destination"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "move_file",
+      "title": "Move File",
+      "description": "Move or rename a file or directory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "destination"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "write_binary_file",
+      "title": "Write Binary File",
+      "description": "Write complete Base64 bytes to a real workspace file after exact size and SHA-256 verification. For files above 2 MiB use begin_upload, upload_chunk, finish_upload. This tool does not fetch ChatGPT attachments by path or URL, run the file, or invoke Shell.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Destination file inside the authorized workspace WORKSPACE_PATH. Absolute and relative workspace paths are accepted; links and escapes are rejected."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2097152,
+            "description": "Exact decoded file size in bytes, at most 512 MiB."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "description": "SHA-256 of the complete original file, as 64 hexadecimal characters."
+          },
+          "content_base64": {
+            "type": "string",
+            "maxLength": 2796204,
+            "description": "Canonical standard Base64, with padding, representing at most 2 MiB of raw bytes. No data URL prefix."
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256",
+          "content_base64"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "begin_upload",
+      "title": "Begin Binary Upload",
+      "description": "Reserve a single destination file in WORKSPACE_PATH and start a temporary upload. Declare the exact total byte count and complete-file SHA-256 before sending chunks. Returns a unique session_id. Nothing is saved at the destination yet.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Destination file inside the authorized workspace WORKSPACE_PATH. Absolute and relative workspace paths are accepted; links and escapes are rejected."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 536870912,
+            "description": "Exact decoded file size in bytes, at most 512 MiB."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "description": "SHA-256 of the complete original file, as 64 hexadecimal characters."
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "upload_chunk",
+      "title": "Upload Binary Chunk",
+      "description": "Append one canonical Base64 chunk to an existing upload session. Index starts at 0 and must increase by exactly 1. Each chunk may contain at most 2 MiB of raw bytes. An invalid or out-of-order chunk cancels the upload.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Unique session_id returned by begin_upload."
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Zero-based sequential chunk index."
+          },
+          "content_base64": {
+            "type": "string",
+            "maxLength": 2796204,
+            "description": "Canonical standard Base64, with padding, representing at most 2 MiB of raw bytes. No data URL prefix."
+          }
+        },
+        "required": [
+          "session_id",
+          "index",
+          "content_base64"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "finish_upload",
+      "title": "Finish Binary Upload",
+      "description": "Verify the received byte count and SHA-256, then move the completed temporary file into its exact workspace destination. An incomplete, expired, or mismatched upload is discarded and cannot overwrite the destination.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Unique session_id returned by begin_upload."
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "run_command",
+      "title": "Run Command",
+      "description": "Run a shell command with a working directory inside the file workspace. Shell Guard approval mode: only fixed read-only diagnostics execute automatically; other commands require one-time native Windows approval. Approved commands use the current Windows user's permissions and are not sandboxed. Include a clear purpose explaining what the command does and why it is needed. Use start_process for long jobs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 1200,
+            "description": "Explain what this exact command does and why it is needed; do not claim it is sandboxed."
+          },
+          "working_directory": {
+            "description": "One-off override; does not reset persistent cwd unless you use shell_reset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "purpose"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "shell_status",
+      "title": "Shell Status",
+      "description": "Show persistent shell session cwd and recent commands.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "shell_reset",
+      "title": "Shell Reset",
+      "description": "Reset persistent shell cwd to a directory (default: workspace).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "start_process",
+      "title": "Start Background Process",
+      "description": "Start a long-running command in the background. Shell Guard approval mode: only fixed read-only diagnostics execute automatically; other commands require one-time native Windows approval. Approved commands use the current Windows user's permissions and are not sandboxed. Use process_output/process_status/stop_process afterwards.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 1200,
+            "description": "Explain what this exact command does and why it is needed; do not claim it is sandboxed."
+          },
+          "working_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "purpose"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "process_status",
+      "title": "Process Status",
+      "description": "Show status of background process(es).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "process_output",
+      "title": "Process Output",
+      "description": "Read stdout/stderr logs for a background process.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tail_chars": {
+            "default": 40000,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 200000
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "stop_process",
+      "title": "Stop Process",
+      "description": "Stop a background process by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the tool operation succeeded"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Local Coder tool name"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Short human-readable result summary"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Tool-specific structured result payload"
+          }
+        },
+        "required": [
+          "ok",
+          "tool",
+          "summary",
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ]
+}

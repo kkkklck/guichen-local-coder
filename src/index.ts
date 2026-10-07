@@ -1,25 +1,29 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
 import { randomUUID } from "crypto";
+import { LATEST_PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js";
 
 import {
   setDefaultCwd,
   getDefaultCwd,
   getFullDiskAccess,
+  assertWorkspaceBoundary,
 } from "./lib/path-security.js";
 import {
   consumeSessionTransportError,
   createSessionManager,
   extractRequestId,
   isInitializeRequest,
+  SessionCapacityError,
 } from "./lib/mcp-session-manager.js";
 import { initUpstreamManager } from "./lib/mcp-upstream-manager.js";
 import { startAdminServer } from "./admin/server.js";
 import { logMcpHttpEvent, logMcpRequest } from "./lib/activity-log.js";
+import { getShellGuardMode } from "./lib/shell-approval.js";
 import {
   buildInstructionContext,
   summarizeInstructionContext,
@@ -34,6 +38,8 @@ const ADMIN_PORT = parseInt(process.env.ADMIN_PORT || "3001", 10);
 const SHELL_TIMEOUT = parseInt(process.env.SHELL_TIMEOUT || "120", 10);
 const SESSION_RECOVERY =
   (process.env.MCP_SESSION_RECOVERY || "true").toLowerCase() !== "false";
+// Reject an invalid policy before exposing any listener or tool.
+const shellGuardMode = getShellGuardMode();
 
 function splitWorkspaceEnv(value: string | undefined): string[] {
   if (!value) return [];
@@ -56,8 +62,12 @@ function resolveWorkspaceRoots(): string[] {
 }
 
 const workspaceRoots = resolveWorkspaceRoots();
+if (workspaceRoots.length !== 1) {
+  throw new Error("SECURITY: exactly one workspace root must be configured");
+}
 const workspaceRoot = workspaceRoots[0] || process.cwd();
 setDefaultCwd(workspaceRoot);
+await assertWorkspaceBoundary();
 
 const upstreamManager = await initUpstreamManager();
 
@@ -74,7 +84,7 @@ if (instructionContext.projectMemory.sections.length > 0) {
   );
 } else {
   console.log(
-    `[MCP] Project memory: no CLAUDE.md/AGENTS.md at ${workspaceRoot} — set WORKSPACE_PATH to your project root`
+    `[MCP] Project memory: no CLAUDE.md/AGENTS.md at ${workspaceRoot} 鈥?set WORKSPACE_PATH to your project root`
   );
 }
 if (instructionContext.git.is_repo) {
@@ -95,22 +105,79 @@ const sessionManager = createSessionManager({
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-// ChatGPT co the goi "/" hoac "/mcp" — ho tro ca hai.
+// ChatGPT co the goi "/" hoac "/mcp" 鈥?ho tro ca hai.
 // Neu dat MCP_TOKEN, endpoint doi thanh "/<token>" + "/mcp/<token>" va cac path
 // khong co token se tra 401 (chong scan tunnel URL / trang web goi vao localhost).
 const MCP_PATHS = MCP_TOKEN ? [`/${MCP_TOKEN}`, `/mcp/${MCP_TOKEN}`] : ["/", "/mcp"];
 const MCP_PATHS_SET = new Set(MCP_PATHS);
-// /health is unauthenticated, and startup output may be collected in logs.
-// Keep the real token only in the route matcher, never in diagnostic output.
-const DISPLAY_MCP_PATHS = MCP_TOKEN
-  ? ["/[REDACTED_MCP_TOKEN]", "/mcp/[REDACTED_MCP_TOKEN]"]
-  : MCP_PATHS;
+
+// Some MCP clients use the JSON-RPC media type instead of application/json.
+// Normalize JSON media types on the token-gated endpoint before Express parses
+// the body and before the SDK validates Content-Type.
+app.use((req, _res, next) => {
+  if (req.method === "POST" && MCP_PATHS_SET.has(req.path)) {
+    const originalContentType = String(req.headers["content-type"] || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    const mediaType = originalContentType;
+    const acceptsJson = !mediaType || mediaType.includes("json") || mediaType === "text/plain";
+    if (acceptsJson && mediaType !== "application/json") {
+      req.headers["content-type"] = "application/json";
+      const raw = req.rawHeaders || [];
+      const contentTypeIndex = raw.findIndex((value, index) =>
+        index % 2 === 0 && value.toLowerCase() === "content-type"
+      );
+      if (contentTypeIndex >= 0) raw[contentTypeIndex + 1] = "application/json";
+      else raw.push("content-type", "application/json");
+      req.rawHeaders = raw;
+    }
+    console.log(`[MCP WIRE] original-content-type=${originalContentType || "<missing>"}`);
+  }
+  next();
+});
+app.use(express.json({ limit: "50mb" }));
 
 app.use((req, res, next) => {
   const started = Date.now();
   const isMcpRoute = MCP_PATHS_SET.has(req.path);
-  const displayPath = MCP_TOKEN ? req.path.split(MCP_TOKEN).join("[REDACTED_MCP_TOKEN]") : req.path;
+  const safePath = MCP_TOKEN ? req.path.split(MCP_TOKEN).join("<token>") : req.path;
+
+  if (req.method === "POST" && isMcpRoute) {
+    const contentType = String(req.headers["content-type"] || "<missing>").split(";")[0];
+    const acceptTypes = String(req.headers.accept || "")
+      .split(",")
+      .map((value) => value.trim().split(";")[0])
+      .filter(Boolean)
+      .join(",");
+    console.log(`[MCP HTTP] content-type=${contentType} accept=${acceptTypes || "<missing>"}`);
+  }
+
+  // Some tunnel-client MCP probes advertise only JSON even though Streamable
+  // HTTP requires clients to accept JSON and SSE. Local Coder returns JSON for
+  // POST requests, so complete the negotiation headers on this token-gated MCP
+  // route while preserving every other request header.
+  if (req.method === "POST" && isMcpRoute) {
+    const accept = req.headers.accept || "";
+    const accepted = accept
+      .split(",")
+      .map((value) => value.trim().split(";")[0].toLowerCase());
+    const additions = ["application/json", "text/event-stream"].filter(
+      (type) => !accepted.includes(type)
+    );
+    if (additions.length > 0) {
+      const normalized = [...accepted.filter(Boolean), ...additions].join(", ");
+      req.headers.accept = normalized;
+      const raw = req.rawHeaders || [];
+      const acceptIndex = raw.findIndex((value, index) =>
+        index % 2 === 0 && value.toLowerCase() === "accept"
+      );
+      if (acceptIndex >= 0) raw[acceptIndex + 1] = normalized;
+      else raw.push("accept", normalized);
+      req.rawHeaders = raw;
+    }
+  }
+
   res.on("finish", () => {
     const duration = Date.now() - started;
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
@@ -134,7 +201,7 @@ app.use((req, res, next) => {
             : `HTTP ${res.statusCode}`);
       logMcpHttpEvent({
         method: req.method,
-        path: displayPath,
+        path: safePath,
         httpStatus: res.statusCode,
         durationMs: duration,
         sessionId,
@@ -144,14 +211,14 @@ app.use((req, res, next) => {
     }
 
     if (!isMcpRoute) {
-      console.log(`[HTTP] ${req.method} ${displayPath} ${res.statusCode} ${duration}ms${sessionInfo}`);
+      console.log(`[HTTP] ${req.method} ${safePath} ${res.statusCode} ${duration}ms${sessionInfo}`);
     }
   });
   next();
 });
 
 if (MCP_TOKEN) {
-  // 404 chu KHONG phai 401: theo chuan MCP, 401 la tin hieu "can OAuth" — client
+  // 404 chu KHONG phai 401: theo chuan MCP, 401 la tin hieu "can OAuth" 鈥?client
   // (ChatGPT) se di tim OAuth metadata, khong thay, roi treo. 404 = khong co gi o day.
   for (const unguarded of ["/", "/mcp"]) {
     app.all(unguarded, (_req, res) => {
@@ -166,11 +233,17 @@ app.get("/health", (_req, res) => {
     name: "codex-mcp-server",
     workspace: workspaceRoot,
     defaultCwd: getDefaultCwd(),
-    fullMachineAccess: true,
+    // Legacy file-tool flags retained for the Tunnel's workspace health check.
+    fullMachineAccess: false,
     fullDiskAccess: getFullDiskAccess(),
+    fileToolAccess: "workspace_only",
+    shellGuardMode,
+    shellSandboxed: false,
+    hostShellAccess: "current_user_unsandboxed",
     activeSessions: sessionManager.count(),
+    sessionMetrics: sessionManager.stats(),
     sessionRecovery: SESSION_RECOVERY,
-    mcpEndpoints: DISPLAY_MCP_PATHS,
+    mcpEndpoints: MCP_TOKEN ? ["/<token>", "/mcp/<token>"] : MCP_PATHS,
     instructions: summarizeInstructionContext(instructionContext),
   });
 });
@@ -182,6 +255,31 @@ async function handleMcpPost(req: express.Request, res: express.Response): Promi
 
     const existing = sessionId ? sessionManager.get(sessionId) : undefined;
     if (existing) {
+      // tunnel-client may repeat initialize after its discovery/recovery probe
+      // has already warmed this session. Return the negotiated server metadata
+      // idempotently instead of asking the SDK transport to initialize twice.
+      if (isInitializeRequest(req.body)) {
+        sessionManager.touch(sessionId!);
+        const params = (req.body as { params?: { protocolVersion?: unknown } }).params;
+        const requestedVersion = params?.protocolVersion;
+        const protocolVersion =
+          typeof requestedVersion === "string" &&
+          (SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)
+            ? requestedVersion
+            : LATEST_PROTOCOL_VERSION;
+        res.setHeader("Mcp-Session-Id", sessionId!);
+        res.status(200).json({
+          jsonrpc: "2.0",
+          id: requestId,
+          result: {
+            protocolVersion,
+            capabilities: { logging: {}, tools: { listChanged: true } },
+            serverInfo: { name: "codex-mcp-server", version: "2.0.0" },
+            instructions: instructionContext.instructionsText,
+          },
+        });
+        return;
+      }
       await sessionManager.handleExisting(existing, req, res, req.body);
       return;
     }
@@ -227,6 +325,11 @@ async function handleMcpPost(req: express.Request, res: express.Response): Promi
       requestId
     );
   } catch (error) {
+    if (error instanceof SessionCapacityError && !res.headersSent) {
+      res.setHeader("Retry-After", "1");
+      res.status(503).json({ jsonrpc: "2.0", id: extractRequestId(req.body), error: { code: -32000, message: error.message } });
+      return;
+    }
     console.log("[MCP] Error:", error);
     if (!res.headersSent) {
       res.status(500).json({
@@ -311,14 +414,14 @@ const server = app.listen(PORT, HOST, () => {
   console.log("  Codex MCP Server");
   console.log("========================================");
   console.log(`  Local:     http://${HOST}:${PORT}`);
-  console.log(`  MCP:       http://${HOST}:${PORT}${DISPLAY_MCP_PATHS[0]}`);
-  console.log(`  MCP alt:   http://${HOST}:${PORT}${DISPLAY_MCP_PATHS[1]}`);
+  console.log(`  MCP:       http://${HOST}:${PORT}${MCP_TOKEN ? "/<token>" : MCP_PATHS[0]}`);
+  console.log(`  MCP alt:   http://${HOST}:${PORT}${MCP_TOKEN ? "/mcp/<token>" : MCP_PATHS[1]}`);
   console.log(`  Health:    http://${HOST}:${PORT}/health`);
   console.log(`  Admin UI:  http://127.0.0.1:${ADMIN_PORT}/ui`);
   console.log(`  Default cwd: ${workspaceRoot}`);
-  console.log(`  Full machine access: ON (no path restrictions)`);
+  console.log(`  Workspace Guard: ON (${workspaceRoot} only)`);
   console.log(`  Session recovery: ${SESSION_RECOVERY ? "ON" : "OFF"}`);
-  console.log(`  Auth:      ${MCP_TOKEN ? "ON (MCP_TOKEN in URL path)" : "OFF — dat MCP_TOKEN trong .env!"}`);
+  console.log(`  Auth:      ${MCP_TOKEN ? "ON (MCP_TOKEN in URL path)" : "OFF 鈥?dat MCP_TOKEN trong .env!"}`);
   console.log(`  PID:       ${process.pid}`);
   console.log("========================================");
   console.log("  Dang chay... (Ctrl+C de dung)");

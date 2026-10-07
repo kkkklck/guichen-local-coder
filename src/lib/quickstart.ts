@@ -1,42 +1,21 @@
+import { describeShellPolicy } from "./shell-approval.js";
+
 export const MCP_QUICKSTART = `
-## Tool workflow (when agent_status is called)
-1. Project memory + git state are already in MCP instructions from WORKSPACE_PATH.
-2. Call project_context(path) only for a different repo than WORKSPACE_PATH.
-3. Explore with glob (file names) and grep (content), then read_text_file.
-4. Edit with apply_patch (preferred), multi_edit, or write_file for new files.
-5. Run builds/tests with run_command (short) or start_process + process_output (long).
-6. Undo file edits with rewind (list → preview → restore). Shell/bash file changes are not tracked.
+## Workspace-only file workflow
+- Dedicated file-tool paths are restricted to the authorized workspace shown below.
+- Explore with glob, grep, list_directory, and read_text_file.
+- Create, edit, move, copy, and delete ordinary workspace files directly with the file tools; do not request Shell approval for those operations.
+- Plan related file changes together and use apply_patch for a multi-file create/update/delete batch or multi_edit for several replacements in one file. Checkpoint and audit records remain available.
+- Use extract_pdf_text and convert_document_text for PDF/DOCX reading before asking to run a general Python or PowerShell script.
+- ${describeShellPolicy()}
+- The existing command block rules apply in both modes. They are best-effort checks, not an OS sandbox or a guarantee that arbitrary scripts cannot access other directories.
+- The working directory must remain inside the workspace, but shell programs use the current Windows account's permissions. Shell edits are audited as executions; file-tool checkpoints do not automatically capture every shell file change.
+- File-tool path validation is an application-layer guard, not an OS sandbox; concurrent local changes to paths can create a residual TOCTOU race.
+- Git tools, Node REPL, and upstream MCP delegation remain disabled.
+- Prefer the authorized workspace for tasks; do not bypass the remaining command block rules or use disabled execution tools.
 
 ## Output format
 All tools return JSON: { ok, tool, summary, data }
-
-## Tool cheat sheet
-- glob / grep / read_text_file: explore (offset+limit for partial reads)
-- apply_patch: single-file @@ hunks OR multi-file *** Begin Patch format
-- create_directory / delete_directory / copy_file / move_file / delete_file
-- run_command: persistent shell (cd persists); shell_status / shell_reset
-- git_status / git_diff / git_add / git_commit / git_branch / git_restore / git_stash
-- rewind: action=list|preview|restore|status — undo file edits via automatic checkpoints
-- enabled upstream MCP tools are exposed directly as <server>__<tool> (for example chrome-devtools__list_pages, linear__get_user); prefer direct tools
-- mcp_servers / mcp_tools / mcp_call — upstream diagnostics/fallback when a direct proxy is unavailable
-- git_push / git_checkout / delete_directory: may be blocked by ChatGPT safety — use run_command fallback
-
-## apply_patch — single file
-@@
--old line
-+new line
- context unchanged
-
-## apply_patch — multi file
-*** Begin Patch
-*** Update File: src/foo.ts
-@@
--old
-+new
-*** End Patch
-
-## Paths
-Full machine access — use ANY absolute path (C:\\, D:\\, etc.). Relative paths resolve from default cwd.
 `.trim();
 
 export function buildServerInstructions(
@@ -48,14 +27,15 @@ export function buildServerInstructions(
   const header = [
     "# Codex Local Coder MCP",
     `Default project: ${workspaceRoot}`,
-    "Full machine access: ON. Tag this connector in ChatGPT before every task.",
+    "Dedicated file tools: workspace-only. Host Shell: current Windows user permissions, not an OS sandbox.",
+    describeShellPolicy(),
+    "Git tools, Node REPL, and upstream MCP delegation remain disabled.",
   ].join("\n");
 
   const footer = [
     "## Quick pointers",
-    `Workspace roots: ${workspaceRoots.join("; ")}`,
-    "agent_status — full tool cheat sheet + apply_patch format",
-    "project_context(path) — load CLAUDE.md from another repo",
+    `Authorized workspace: ${workspaceRoot}`,
+    "File-tool paths outside this workspace are blocked. Existing shell block rules remain active, but arbitrary shell code can access other directories with the current user's permissions. Shell file changes are not automatically covered by file-tool checkpoints.",
   ].join("\n");
 
   const body = contextBlock?.trim();

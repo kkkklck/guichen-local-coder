@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+﻿import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
@@ -9,10 +9,7 @@ const ROOT_MEMORY_FILES = [
   "CLAUDE.local.md",
 ] as const;
 
-const USER_MEMORY_CANDIDATES = [
-  path.join(os.homedir(), ".codex", "CLAUDE.md"),
-  path.join(os.homedir(), ".claude", "CLAUDE.md"),
-] as const;
+const USER_MEMORY_CANDIDATES: readonly string[] = [];
 
 const RULES_GLOB_MAX = 12;
 const IMPORT_MAX_DEPTH = 4;
@@ -62,7 +59,7 @@ async function readTextLimited(
   try {
     const buf = await fs.readFile(filePath);
     let full = stripHtmlComments(buf.toString("utf-8"));
-    full = await expandImportsInContent(full, path.dirname(filePath));
+    // Security hardening: @imports are disabled so project memory cannot escape WORKSPACE_PATH.
 
     const lines = full.split(/\r?\n/).slice(0, maxLines);
     const lineLimited = lines.join("\n");

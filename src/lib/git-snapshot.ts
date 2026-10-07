@@ -79,11 +79,9 @@ export function formatEnvironmentForInstructions(opts: {
     `Node: ${opts.nodeVersion}`,
     `MCP PID: ${opts.pid}`,
     `Default cwd (WORKSPACE_PATH): ${opts.workspaceRoot}`,
+    `Authorized workspace: ${opts.workspaceRoot}`,
     `Admin UI: http://127.0.0.1:${opts.adminPort}/ui`,
-    opts.workspaceRoots.length > 1
-      ? `Additional workspace roots:\n${opts.workspaceRoots.slice(1).map((r) => `- ${r}`).join("\n")}`
-      : "",
-    "Relative paths resolve from default cwd. Use absolute paths when working outside it.",
+    "Relative paths resolve from the authorized workspace; absolute paths outside it are blocked.",
   ]
     .filter(Boolean)
     .join("\n");

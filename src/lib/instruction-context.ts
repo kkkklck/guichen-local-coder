@@ -1,17 +1,6 @@
-import { CODEX_AGENT_PROMPT } from "./codex-agent-prompt.js";
-import {
-  collectGitSnapshot,
-  formatEnvironmentForInstructions,
-  formatGitSnapshotForInstructions,
-  type GitSnapshot,
-} from "./git-snapshot.js";
-import {
-  formatProjectMemoryForInstructions,
-  loadProjectMemory,
-  type ProjectMemoryBundle,
-} from "./project-memory.js";
-import { appendAutoMemory, formatAutoMemoryForInstructions, loadAutoMemory } from "./auto-memory.js";
-import { formatSkillsForInstructions, loadProjectSkills } from "./skills-loader.js";
+﻿import { CODEX_AGENT_PROMPT } from "./codex-agent-prompt.js";
+import { formatEnvironmentForInstructions, type GitSnapshot } from "./git-snapshot.js";
+import type { ProjectMemoryBundle } from "./project-memory.js";
 import { getChatGptToolProfile } from "./tool-profile.js";
 import { buildServerInstructions } from "./quickstart.js";
 
@@ -32,18 +21,25 @@ export interface InstructionContext {
 export async function buildInstructionContext(
   opts: InstructionContextOptions
 ): Promise<InstructionContext> {
-  const [projectMemory, git, skills, autoMemory] = await Promise.all([
-    loadProjectMemory(opts.workspaceRoot, { workspaceRoots: opts.workspaceRoots }),
-    collectGitSnapshot(opts.workspaceRoot),
-    loadProjectSkills(opts.workspaceRoot),
-    loadAutoMemory(opts.workspaceRoot),
-  ]);
+  // Phase 1 reads no project instructions, Git metadata, user auto-memory, or
+  // globally installed skills. MCP file tools enforce the workspace boundary.
+  const projectMemory: ProjectMemoryBundle = {
+    root: opts.workspaceRoot,
+    workspace_roots: [opts.workspaceRoot],
+    sections: [],
+    total_bytes: 0,
+    loaded_at: new Date().toISOString(),
+  };
+  const git: GitSnapshot = {
+    is_repo: false,
+    error: "Git metadata loading is disabled in Phase 1",
+  };
 
   const profile = getChatGptToolProfile();
 
   const blocks = [
     CODEX_AGENT_PROMPT,
-    `Tool profile: **${profile}** (${profile === "slim" ? "core tools only — optimal for ChatGPT web" : "all tools exposed"}).`,
+    `Tool profile: **${profile}** (Phase 1 capability denylist remains enforced).`,
     formatEnvironmentForInstructions({
       workspaceRoot: opts.workspaceRoot,
       workspaceRoots: opts.workspaceRoots,
@@ -51,17 +47,13 @@ export async function buildInstructionContext(
       adminPort: opts.adminPort,
       nodeVersion: process.version,
     }),
-    formatGitSnapshotForInstructions(git),
-    formatAutoMemoryForInstructions(autoMemory),
-    formatProjectMemoryForInstructions(projectMemory),
-    formatSkillsForInstructions(skills),
   ].filter(Boolean);
 
   const projectMemoryBlock = blocks.join("\n\n");
   const instructionsText = buildServerInstructions(
     opts.workspaceRoot,
     opts.workspaceRoots,
-    true,
+    false,
     projectMemoryBlock
   );
 
@@ -91,5 +83,3 @@ export function summarizeInstructionContext(ctx: InstructionContext): Record<str
     tool_profile: getChatGptToolProfile(),
   };
 }
-
-export { appendAutoMemory };
