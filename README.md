@@ -1,44 +1,38 @@
+<div align="center">
+
 # Guichen Local Coder
 
+**Your browser. Your files. Your workstation.**
+
+A local MCP bridge for research and development on Windows.
+
 [![Windows verification](https://github.com/kkkklck/guichen-local-coder/actions/workflows/ci.yml/badge.svg)](https://github.com/kkkklck/guichen-local-coder/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform: Windows](https://img.shields.io/badge/Windows-11-2563EB?style=flat-square)](#quick-start)
+[![Node.js: 22+](https://img.shields.io/badge/Node.js-22%2B-3C873A?style=flat-square)](#quick-start)
+[![License: MIT](https://img.shields.io/badge/License-MIT-697586?style=flat-square)](LICENSE)
 
-A local MCP workstation bridge for ChatGPT in the browser: manage research files, transfer binary data, and run commands on your Windows computer.
+[Quick start](#quick-start) · [Features](#what-you-can-do) · [Execution policy](#execution-and-safety) · [Tools](#toolbox) · [Documentation](#documentation)
 
-This is a fork of [hoangcoderr/chatgpt-local-coder](https://github.com/hoangcoderr/chatgpt-local-coder). The Guichen edition adds workspace path checks, a native Windows Shell Guard dialog, verified binary uploads, and session recovery fixes. It retains the upstream MIT license and attribution. This is a community project, unaffiliated with OpenAI.
+</div>
 
-```text
-ChatGPT / MCP client → HTTPS tunnel → Local MCP server → File tools / Shell Guard
-```
+![Guichen Local Coder connects browser AI to workspace files, verified uploads, and Shell Guard.](docs/assets/readme-hero.svg)
 
-## Features
+## What you can do
 
-- **Workspace file operations:** read, create, overwrite, edit, copy, move, and delete files throughout one configured directory and its ordinary subdirectories. Includes multi-file patches, audit events, and file checkpoints.
-- **Binary uploads:** save Base64 bytes as real ZIP, PDF, PNG, DOCX, or other files. Chunked uploads verify sequence, total size, and final SHA-256 before publishing the destination.
-- **Native Windows approval:** inspect the original command, working directory, AI explanation, and backend risk reasons. Denial, window closure, timeout, and IPC failure do not authorize execution.
-- **Optional trusted execution:** explicitly opt into running commands without a local approval dialog after the existing block checks.
-- **Session recovery:** reconnect after server restarts, coalesce concurrent recovery handshakes, remove closed transports, and bound idle session lifetime and capacity.
-- **Optional Windows tunnel supervision:** wait for network readiness, refresh system proxy settings, apply bounded backoff, and report connection state with redacted diagnostics.
+| Files and data | Execution and reliability |
+| :--- | :--- |
+| **Work throughout your workspace**<br>Read, edit, create, copy, move, and delete files in one configured directory and its ordinary descendants. | **Inspect commands before they run**<br>Native Windows approval displays the original command, working directory, AI explanation, and backend risk reasons. |
+| **Transfer real binary files**<br>Write ZIP, PDF, PNG, DOCX, and other formats from Base64, with ordered chunks, size checks, and final SHA-256 verification. | **Choose an explicit Shell policy**<br>Use one-time approval by default, or deliberately enable trusted execution in your local configuration. |
+| **Keep an operation record**<br>Multi-file patches, audit events, and file checkpoints support everyday research and development. | **Recover interrupted connections**<br>Session recovery coalesces reconnects and bounds idle sessions. Optional tunnel supervision handles network readiness and proxy changes. |
 
-## Security model
-
-| Operation | Behavior |
-| --- | --- |
-| Dedicated file tools | Restricted to one `WORKSPACE_PATH`, including ordinary descendants; traversal and linked paths are checked |
-| File deletion | Requires an explicit validated path; workspace root deletion and direct `.git` access are blocked |
-| Fixed diagnostic commands | Automatically allowed, for example `python --version` |
-| Other Shell commands in `approval` mode | Require one-time approval in the native Windows dialog |
-| Other Shell commands in `trusted` mode | Execute without the local dialog; existing block checks remain active |
-
-**Workspace path checks are not an OS sandbox and retain TOCTOU risks. Shell commands and their child processes run with the current Windows user's permissions. Approved or trusted commands may access files, programs, and networks outside the workspace. A command blacklist cannot guarantee confinement. AI explanations are not a security guarantee.**
-
-`approval` is the default. `trusted` is an explicit host configuration, not a permission that an AI tool argument can grant. ChatGPT's own tool confirmations are controlled by the client; MCP safety annotations are not disguised to suppress them. Shell side effects are not automatically covered by file-tool checkpoints.
-
-See [SECURITY.md](SECURITY.md) for deployment and reporting guidance.
+> [!IMPORTANT]
+> **File tools have a workspace boundary; Shell is not sandboxed.** Approved or trusted commands use your Windows account's permissions and may access files, programs, and networks outside the workspace. Path checks retain TOCTOU risks, and a blacklist cannot guarantee confinement.
 
 ## Quick start
 
-Primary verified platform: Windows 11 and Node.js 24. Node.js 22+ is required. Native approval and startup scripts use Windows PowerShell 5.1. Other operating systems have not completed acceptance testing.
+**Requirements:** Windows 11, Node.js 22+, and Windows PowerShell 5.1 for native approval. The primary verified setup uses Node.js 24; other operating systems have not completed acceptance testing.
+
+### 1. Install and start
 
 ```powershell
 git clone https://github.com/kkkklck/guichen-local-coder.git
@@ -49,43 +43,76 @@ npm run build
 npm start
 ```
 
-The setup script creates `./workspace` and a local `.env` with separate random MCP and Admin tokens. It does not print tokens or overwrite an existing `.env`. Default Shell mode: `approval`.
+Setup creates `./workspace` and a local `.env` with separate random MCP and Admin tokens. It does not print tokens or overwrite an existing configuration. The default Shell mode is `approval`.
 
-To use another workspace, edit `WORKSPACE_PATH` in `.env` before starting. Configure exactly one existing ordinary directory. Its ordinary descendants are accessible; linked roots and multiple roots are rejected.
+### 2. Choose your workspace
 
-| Endpoint | Address |
-| --- | --- |
-| MCP service | `http://127.0.0.1:3000` |
-| Health check | `http://127.0.0.1:3000/health` |
+Edit `WORKSPACE_PATH` in `.env` before starting if you want to use another directory. Configure **one existing ordinary directory**. Its ordinary descendants are accessible; linked roots and multiple roots are rejected.
+
+| Service | Local address |
+| :--- | :--- |
 | MCP endpoint | `http://127.0.0.1:3000/mcp/<MCP_TOKEN>` |
-| Local admin UI | `http://127.0.0.1:3001/ui` |
+| Health check | `http://127.0.0.1:3000/health` |
+| Admin UI | `http://127.0.0.1:3001/ui` |
 
-Read tokens only from your local `.env`; never publish the full authenticated endpoint. Admin APIs require `ADMIN_TOKEN`. Some admin UI labels retain the upstream language; the native Shell approval dialog currently uses Simplified Chinese.
+Read tokens only from your local `.env`; never publish the authenticated endpoint. Admin APIs require `ADMIN_TOKEN`.
 
-If you choose trusted execution, set `SHELL_GUARD_MODE=trusted` in `.env` and restart the server after understanding the permissions described above.
+### 3. Connect your client
 
-## Connect a remote MCP client
+Forward your own HTTPS tunnel to local port 3000, then configure the token-bearing MCP endpoint in your remote client. ChatGPT feature availability and connection settings depend on the current product and account. Refresh the client's tool list after changing tool definitions.
 
-Use your own HTTPS tunnel to forward requests to local port 3000, then configure the token-bearing MCP endpoint in your client. ChatGPT feature availability and connection settings depend on the current product and account. Refresh the client's tool list after changing tool definitions.
+For the optional OpenAI Tunnel integration, follow [Windows tunnel setup](docs/windows-tunnel.md). No external executable, API key, Tunnel ID, or personal configuration is bundled.
 
-The optional OpenAI Tunnel integration is documented in [Windows tunnel setup](docs/windows-tunnel.md). No tunnel client, cloudflared executable, API key, Tunnel ID, or personal configuration is bundled. You need your own account and credentials.
+## Execution and safety
 
-## Available tools
+| Policy | What happens |
+| :--- | :--- |
+| `approval` · **default** | Fixed diagnostics such as `python --version` run automatically. Other Shell commands require one-time native Windows approval. |
+| `trusted` · **explicit opt-in** | Commands execute without the local approval dialog after the existing block checks. Set `SHELL_GUARD_MODE=trusted` in `.env` and restart to opt in. |
 
-The default profile exposes **26 tools**. The actual [`tools/list` snapshot](docs/tools.schema.json) includes input schemas and safety annotations.
+A refusal, window closure, timeout, or IPC failure does not authorize execution. AI explanations are informational and cannot grant system permissions. ChatGPT's own confirmations are managed by the client; this project does not disguise MCP annotations to suppress them.
+
+Dedicated file tools check traversal and linked paths, block workspace-root deletion, and prevent direct `.git` access. Shell side effects are not automatically covered by file-tool checkpoints, and checkpoints are not a complete backup.
+
+Read the full [security boundaries and reporting guidance](SECURITY.md) before exposing a remote service.
+
+## Toolbox
+
+**26 tools** in the default profile, with the full input schemas and safety annotations in the [`tools/list` snapshot](docs/tools.schema.json).
+
+<details>
+<summary><strong>Browse the tool catalog</strong></summary>
 
 | Category | Tools |
-| --- | --- |
-| Files and directories | `read_text_file`, `write_file`, `edit_file`, `multi_edit`, `apply_patch`, `glob`, `grep`, `list_directory`, `create_directory`, `delete_file`, `delete_directory`, `copy_file`, `move_file` |
+| :--- | :--- |
+| Read and explore | `read_text_file`, `glob`, `grep`, `list_directory` |
+| Edit and patch | `write_file`, `edit_file`, `multi_edit`, `apply_patch` |
+| Organize files | `create_directory`, `delete_file`, `delete_directory`, `copy_file`, `move_file` |
 | Binary transfer | `write_binary_file`, `begin_upload`, `upload_chunk`, `finish_upload` |
 | Shell and processes | `run_command`, `shell_status`, `shell_reset`, `start_process`, `process_status`, `process_output`, `stop_process` |
-| Existing document helpers | `extract_pdf_text`, `convert_document_text` |
+| Document helpers | `extract_pdf_text`, `convert_document_text` |
 
-Direct Git tools, Node REPL, MCP delegation, and other unreviewed execution entrances remain disabled. This edition does not expose every upstream tool. Optional PDF extraction requires a trusted `pdftotext` installation outside the workspace; configure `PDFTOTEXT_PATH` if needed. That executable is not bundled.
+Direct Git tools, Node REPL, MCP delegation, and other unreviewed execution entrances remain disabled. This edition does not expose every upstream tool.
 
-**Receiving binary bytes does not mean every ChatGPT conversation can transmit attachment bytes.** The client must obtain the complete file bytes, encode them as Base64, and submit tool arguments. A `sandbox:/mnt/data/...` path is neither a Windows path nor a public download URL. Local transfer tests do not establish attachment compatibility in every ChatGPT environment. See the [binary upload protocol](docs/binary-upload.md).
+Optional PDF extraction requires a trusted `pdftotext` installation outside the workspace. Configure `PDFTOTEXT_PATH` if needed; that executable is not bundled. Some admin UI labels retain the upstream language; the native Shell approval dialog currently uses Simplified Chinese.
 
-## Development and verification
+</details>
+
+> [!NOTE]
+> **Binary transfer requires access to the actual bytes.** The client must obtain the complete attachment or generated file, encode it as Base64, and submit tool arguments. A `sandbox:/mnt/data/...` path is not a Windows path or public download URL. Local tests do not establish attachment compatibility in every ChatGPT environment.
+
+## Documentation
+
+| Guide | What it covers |
+| :--- | :--- |
+| [Windows tunnel setup](docs/windows-tunnel.md) | Credentials, connection status, startup, and isolated tunnel tests |
+| [Binary upload protocol](docs/binary-upload.md) | Single-file writes, chunk order, size limits, and SHA-256 checks |
+| [Security](SECURITY.md) | Workspace checks, Shell permissions, and private reporting |
+| [Contributing](CONTRIBUTING.md) | Development workflow and regression requirements |
+| [Release verification](docs/release-verification.md) | Recorded checks and their practical limits |
+| [Attribution](NOTICE.md) | Upstream origin, fork baseline, and third-party licensing |
+
+## Development
 
 ```powershell
 npm run build
@@ -96,18 +123,27 @@ npm run test:tunnel
 npm run check:release
 ```
 
-Routine tests use temporary directories and mock services. `test:tunnel` includes isolated supervisor tests and does not read real credentials. Its optional `test-proxy-routing.mjs` test requires a separately installed tunnel client and is not part of the default suite.
+Routine tests use temporary directories and mock services. Tunnel supervisor tests do not read real credentials. Regenerate the schema snapshot with `npm run tools:schema`.
 
-`test-live-*`, `test-phase1-security`, approval E2E drivers, and UI capture scripts are manual acceptance tools. They may connect to a running service or display real windows; do not run them in unattended CI or with a personal deployment's `.env`.
+<details>
+<summary><strong>Test scope and session settings</strong></summary>
 
-Session defaults: `MCP_SESSION_TTL_MS=1800000`, `MCP_SESSION_MAX=512`, and `MCP_SESSION_RECOVERY_TIMEOUT_MS=10000`. Idle cleanup does not terminate active or queued requests. If all session slots are busy, the server returns 503 with a retry hint. Session recovery does not replay a tool after dispatch has begun. Client retries of side-effecting operations still require care.
+`test-live-*`, `test-phase1-security`, approval E2E drivers, and UI capture scripts are manual acceptance tools. They may connect to a running service or display real windows; do not run them in unattended CI or with a personal deployment's `.env`. The optional `test-proxy-routing.mjs` needs a separately installed tunnel client and is not part of the default suite.
 
-Rate limiting, authentication failures, and lost connectivity are different conditions. Restart loops are not a workaround for remote 429 responses.
+| Setting | Default |
+| :--- | :--- |
+| `MCP_SESSION_TTL_MS` | `1800000` · 30 minutes |
+| `MCP_SESSION_MAX` | `512` sessions |
+| `MCP_SESSION_RECOVERY_TIMEOUT_MS` | `10000` · 10 seconds |
 
-The [release verification record](docs/release-verification.md) describes local checks and their limits. To regenerate the schema snapshot, run `npm run tools:schema`.
+Idle cleanup does not terminate active or queued requests. When all slots are busy, the server returns 503 with a retry hint. Recovery does not replay a tool after dispatch has begun; client retries of side-effecting operations still require care.
 
-## Contributing and attribution
+Rate limiting, authentication failures, and connectivity loss are different conditions. Restart loops are not a workaround for remote 429 responses.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [NOTICE.md](NOTICE.md). Preserve the approval IPC, path checks, and honest tool annotations. Never commit credentials, runtime logs, backups, workspace contents, or screenshots of private requests.
+</details>
 
-Licensed under [MIT](LICENSE). Upstream author: **hoangcoderr**. Guichen modifications: **Guichen Local Coder contributors**.
+---
+
+**Built on [ChatGPT Local Coder](https://github.com/hoangcoderr/chatgpt-local-coder) by hoangcoderr.** This fork preserves upstream history, the [MIT license](LICENSE), and attribution. Guichen additions are maintained by Guichen Local Coder contributors.
+
+A community project, unaffiliated with OpenAI.
